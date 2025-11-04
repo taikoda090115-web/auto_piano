@@ -1,1 +1,228 @@
-<p>My cat is very grumpy</p>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>音楽会練習アプリ</title>
+<style>
+  body {
+    font-family: "Helvetica Neue", sans-serif;
+    text-align: center;
+    background-color: #f4f6fa;
+    padding: 20px;
+  }
+  h1 { margin-bottom: 10px; }
+  .control-panel {
+    margin: 10px auto;
+    background: white;
+    border-radius: 10px;
+    padding: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    width: 90%;
+    max-width: 600px;
+  }
+  .score-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 15px;
+  }
+  .score-container img {
+    max-width: 90%;
+    height: auto;
+    margin: 5px 0;
+    border-radius: 5px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.2);
+  }
+  .lyrics {
+    margin-top: 15px;
+    font-size: 1.2em;
+    background: #fff;
+    border-radius: 8px;
+    padding: 10px;
+  }
+  .checkbox-group {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 10px;
+  }
+  .progress-bar {
+    width: 80%;
+    margin-top: 15px;
+  }
+</style>
+</head>
+
+<body>
+  <h1>音楽会練習アプリ</h1>
+
+  <div class="control-panel">
+    <label>小節番号：</label>
+    <input type="number" id="measureInput" min="1" value="1" style="width:80px">
+    <button id="playBtn">再生 ▶</button>
+
+    <div class="checkbox-group">
+      <label><input type="checkbox" id="accompaniment" checked> 伴奏</label>
+      <label><input type="checkbox" id="part1" checked> パート1</label>
+      <label><input type="checkbox" id="part2"> パート2</label>
+      <label><input type="checkbox" id="metronome"> メトロノーム</label>
+    </div>
+
+    <input type="range" id="progress" class="progress-bar" min="0" max="100" value="0">
+  </div>
+
+  <div class="score-container" id="scoreContainer">
+    <!-- 楽譜の画像がここに表示される -->
+  </div>
+
+  <div class="lyrics" id="lyrics">
+    <!-- 歌詞がここに表示される -->
+  </div>
+
+<script>
+/* ==============================
+   設定部分
+================================= */
+
+// 各音源のファイル名
+const audioFiles = {
+  accompaniment: "accompaniment.mp3",
+  part1: "part1.mp3",
+  part2: "part2.mp3",
+  metronome: "metronome.mp3"
+};
+
+// 楽譜画像（1行ずつに分割したファイル）
+const scoreImages = [
+  "score_line1.png",
+  "score_line2.png",
+  "score_line3.png",
+  "score_line4.png"
+];
+
+// 各行に対応する歌詞
+const lyricsList = [
+  "あさひの ひかりに かがやく そらよ",
+  "きぼうの うたを うたいだそう",
+  "こころを あわせて ともにすすもう",
+  "ゆめみる せかいへ てをのばそう"
+];
+
+// 小節と再生時間の対応（秒単位）
+// 例：1小節目=0秒, 5小節目=10秒 → 1小節あたり2.5秒換算
+const measureMap = {
+  1: 0,
+  5: 10,
+  9: 20,
+  13: 30
+};
+
+/* ==============================
+   再生制御ロジック
+================================= */
+
+let audios = {};
+let duration = 0; // 再生時間
+let isPlaying = false;
+let progressInterval;
+
+const measureInput = document.getElementById("measureInput");
+const playBtn = document.getElementById("playBtn");
+const progressBar = document.getElementById("progress");
+const scoreContainer = document.getElementById("scoreContainer");
+const lyricsDiv = document.getElementById("lyrics");
+
+// オーディオ要素を作成
+for (const key in audioFiles) {
+  const audio = new Audio(audioFiles[key]);
+  audio.preload = "auto";
+  audios[key] = audio;
+}
+
+// 再生ボタンが押されたとき
+playBtn.addEventListener("click", () => {
+  if (isPlaying) {
+    stopAll();
+    return;
+  }
+
+  const measure = parseInt(measureInput.value);
+  const startTime = getStartTime(measure);
+
+  playFromMeasure(startTime);
+  isPlaying = true;
+  playBtn.textContent = "停止 ⏹";
+});
+
+// 小節番号から再生位置を求める
+function getStartTime(measure) {
+  const keys = Object.keys(measureMap).map(Number).sort((a,b)=>a-b);
+  let start = 0;
+  for (let i = 0; i < keys.length; i++) {
+    if (measure >= keys[i]) start = measureMap[keys[i]];
+  }
+  return start;
+}
+
+// 音源を同時再生
+function playFromMeasure(startTime) {
+  for (const key in audios) {
+    const checkbox = document.getElementById(key);
+    if (checkbox.checked) {
+      const a = audios[key];
+      a.currentTime = startTime;
+      a.play();
+    }
+  }
+
+  // 再生位置更新バー
+  progressInterval = setInterval(updateProgress, 500);
+  updateDisplay(startTime);
+}
+
+// 再生停止
+function stopAll() {
+  for (const key in audios) {
+    audios[key].pause();
+  }
+  clearInterval(progressInterval);
+  isPlaying = false;
+  playBtn.textContent = "再生 ▶";
+}
+
+// 再生バーの更新
+function updateProgress() {
+  const mainAudio = audios.accompaniment;
+  if (!mainAudio.paused) {
+    const percent = (mainAudio.currentTime / mainAudio.duration) * 100;
+    progressBar.value = percent;
+    updateDisplay(mainAudio.currentTime);
+  } else {
+    stopAll();
+  }
+}
+
+// 現在位置に合わせて楽譜と歌詞を切り替える
+function updateDisplay(currentTime) {
+  // 今どの区間にいるかを判定
+  let index = 0;
+  const times = Object.values(measureMap);
+  for (let i = 0; i < times.length; i++) {
+    if (currentTime >= times[i]) index = i;
+  }
+
+  // 楽譜を2行ずつ表示
+  scoreContainer.innerHTML = "";
+  for (let i = index; i < index + 2 && i < scoreImages.length; i++) {
+    const img = document.createElement("img");
+    img.src = scoreImages[i];
+    scoreContainer.appendChild(img);
+  }
+
+  // 歌詞を表示
+  lyricsDiv.textContent = lyricsList[index] || "";
+}
+</script>
+</body>
+</html>
