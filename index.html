@@ -70,7 +70,7 @@
             <label><input type="checkbox" id="metronome"> メトロノーム ※未実装</label>
         </div>
 
-        <!-- <input type="range" id="progress" class="progress-bar" min="0" max="100" value="0"> -->
+        <input type="range" id="progress" class="progress-bar" min="0" max="100" value="0">
     </div>
 
     <div class="score-container" id="scoreContainer">
@@ -261,7 +261,7 @@ function updateDisplay(currentTime) {
         img.src = scoreImages[i];
         scoreContainer.appendChild(img);
     }
-    
+
 
     // 歌詞を2行表示（start-1行目とstart行目）
     lyricsDiv.innerHTML = `
